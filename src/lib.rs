@@ -70,13 +70,9 @@ impl ControlFlowGraph {
     }
 
     pub fn execute(&mut self, program_counter: usize, instruction: BlockType) -> Result<(), CFGError> {
-
         match instruction {
             BlockType::Instruction(name, operand) => {
-                let Some(curr_block) = self.blocks.get_mut(self.current_block) else {
-                    return Err(CFGError::MissingCurrentBlock)
-                };
-
+                let curr_block = self.blocks.get_mut(self.current_block).ok_or(CFGError::MissingCurrentBlock)?;
                 if program_counter >= curr_block.start && program_counter <= curr_block.end {
                     curr_block.add_instruction(program_counter, BlockType::Instruction(name, operand));
                 }
