@@ -40,122 +40,77 @@ impl ControlFlowGraph {
 
     /// Adds an edge to a BasicBlock, connecting src_block to dest_block.
     fn add_edge(&mut self, src_block: usize, dest_block: usize) -> Result<(), CFGError> {
-        let Some(_dest) = self.blocks.get(dest_block) else {
-            return Err(CFGError::MissingBlock)
-        };
-
         if let Some(src_block) = self.blocks.get_mut(src_block) {
             src_block.add_edge(dest_block);
+            Ok(())
         } else {
             return Err(CFGError::MissingBlock)
         }
-
-        Ok(())
     }
 
-    /// Adds a BasicBlock to the ControlFlowGraph and returns the position of the BasicBlock, if needed.
+    /// Adds a BasicBlock to the ControlFlowGraph and returns the position of the BasicBlock.
     fn add_block(&mut self, block: BasicBlock) -> usize {
         self.blocks.push(block);
         self.blocks.len() - 1
     }
 
     /// Linearly searches the blocks currently in the graph to identify if the given block conflicts with another.
-    fn query_blocks(&self, address: usize) -> Option<usize> {
-        for (i, bb) in self.blocks.iter().enumerate() {
-            if bb.start == address {
-                return Some(i)
-            }
-        }
-        None
+    fn query_block_or_create(&mut self, address: usize) -> usize {
+        let index = self.blocks.iter().position(|bb| bb.start == address).unwrap_or_else(|| { let new_block = BasicBlock::new(address); self.add_block(new_block) } );
+        index
     }
 
+    /// Generates a dot file from the constructed ControlFlowGraph so far.
+    pub fn dot(&self, filename: &str) { todo!() }
+
+    /// Executes the given BlockType on the ControlFlowGraph
     pub fn execute(&mut self, program_counter: usize, instruction: BlockType) -> Result<(), CFGError> {
         match instruction {
             BlockType::Instruction(name, operand) => {
                 let curr_block = self.blocks.get_mut(self.current_block).ok_or(CFGError::MissingCurrentBlock)?;
-                if program_counter >= curr_block.start && program_counter <= curr_block.end {
+                if !curr_block.block.contains_key(&program_counter) {
                     curr_block.add_instruction(program_counter, BlockType::Instruction(name, operand));
                 }
 
                 Ok(())
             }
-            // TODO: Refactor this jump_type match to not be so horribly written...
             BlockType::Jump(name, success_address, jump_type, failure_address) => {
                 // Add the instruction to the current block, if we already haven't
                 let curr_block = self.blocks.get_mut(self.current_block).ok_or(CFGError::MissingCurrentBlock)?;
-                if program_counter >= curr_block.start && program_counter <= curr_block.end {
+                if !curr_block.block.contains_key(&program_counter) {
                     curr_block.add_instruction(program_counter, BlockType::Jump(name, success_address, jump_type, failure_address));
                 }
-
                 match jump_type {
                     JumpType::UnconditionalJump => {
-
-                        if let Some(success_index) = self.query_blocks(success_address) {
-                            self.add_edge(self.current_block, success_index)?;
-                            self.current_block = success_index;
-                        } else {
-                            let new_block = BasicBlock::new(success_address);
-                            let success_index = self.add_block(new_block);
-                            self.current_block = success_index;
-                        }
+                        let success_index = self.query_block_or_create(success_address);
+                        self.add_edge(self.current_block, success_index)?;
+                        self.current_block = success_index;
                         Ok(())
                     }
                     JumpType::ConditionalTaken => {
                         // Failure address needs to be defined.
-                        let Some(fail_address) = failure_address else {
+                        let Some(failure_address) = failure_address else {
                             return Err(CFGError::ExpectedFailureAddress)
                         };
 
-                        // Does a failure block already exist?
-                        if let Some(failure_index) = self.query_blocks(fail_address) {
-                            self.add_edge(self.current_block, failure_index)?;
-                        } else { // The failure block does not exist
-                            let failure_block = BasicBlock::new(fail_address);
-                            let failure_index = self.add_block(failure_block);
-                            self.add_edge(self.current_block, failure_index)?;
-                        }
-
-                        // Does a success block already exist?
-                        if let Some(success_index) = self.query_blocks(success_address) {
-                            self.add_edge(self.current_block, success_index)?;
-                            // The conditional was taken, so only change the current block in the success case.
-                            self.current_block = success_index;
-                        } else { // The success block does not exist
-                            let new_block = BasicBlock::new(success_address);
-                            let success_index = self.add_block(new_block);
-                            self.add_edge(self.current_block, success_index)?;
-                            // The conditional was taken, so only change the current block in the success case.
-                            self.current_block = success_index;
-                        };
+                        let failure_index = self.query_block_or_create(failure_address);
+                        self.add_edge(self.current_block, failure_index)?;
+                        let success_index = self.query_block_or_create(success_address);
+                        self.add_edge(self.current_block, success_index)?;
+                        self.current_block = success_index;
 
                         Ok(())
                     }
                     JumpType::ConditionalNotTaken => {
-                        let Some(fail_address) = failure_address else {
+                        let Some(failure_address) = failure_address else {
                             return Err(CFGError::ExpectedFailureAddress)
                         };
 
-                        // Does the success block already exist?
-                        if let Some(success_index) = self.query_blocks(success_address) {
-                            self.add_edge(self.current_block, success_index)?;
-                        } else { // The success block does not exist
-                            let new_block = BasicBlock::new(success_address);
-                            let success_index = self.add_block(new_block);
-                            self.add_edge(self.current_block, success_index)?;
-                        };
-
-                        // Does the failure block already exist?
-                        if let Some(failure_index) = self.query_blocks(fail_address) {
-                            self.add_edge(self.current_block, failure_index)?;
-                            // The conditional was not taken, only change in the false case.
-                            self.current_block = failure_index;
-                        } else { // The failure block does not exist
-                            let failure_block = BasicBlock::new(fail_address);
-                            let failure_index = self.add_block(failure_block);
-                            self.add_edge(self.current_block, failure_index)?;
-                            // The conditional was not taken, only change in the false case.
-                            self.current_block = failure_index;
-                        }
+                        let success_index = self.query_block_or_create(success_address);
+                        self.add_edge(self.current_block, success_index)?;
+                        let failure_index = self.query_block_or_create(failure_address);
+                        self.add_edge(self.current_block, failure_index)?;
+                        self.current_block = failure_index;
 
                         Ok(())
                     }
@@ -194,8 +149,12 @@ impl BasicBlock {
         self.block.iter()
     }
 
+    // TODO: Add a counting metric to the edges to see how many times they've been traversed.
+    /// Adds a new edge the block, checks to see if that edge already exists.
     pub fn add_edge(&mut self, edge: usize) {
-        self.edges.push(edge);
+        if self.edges.iter().all(|e| *e != edge) {
+            self.edges.push(edge);
+        }
     }
 
 }
