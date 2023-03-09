@@ -89,9 +89,7 @@ impl ControlFlowGraph {
                     }
                     JumpType::ConditionalTaken => {
                         // Failure address needs to be defined.
-                        let Some(failure_address) = failure_address else {
-                            return Err(CFGError::ExpectedFailureAddress)
-                        };
+                        let failure_address = failure_address.ok_or(CFGError::ExpectedFailureAddress)?;
 
                         let failure_index = self.query_block_or_create(failure_address);
                         self.add_edge(self.current_block, failure_index)?;
@@ -102,9 +100,8 @@ impl ControlFlowGraph {
                         Ok(())
                     }
                     JumpType::ConditionalNotTaken => {
-                        let Some(failure_address) = failure_address else {
-                            return Err(CFGError::ExpectedFailureAddress)
-                        };
+                        // Failure address needs to be defined.
+                        let failure_address = failure_address.ok_or(CFGError::ExpectedFailureAddress)?;
 
                         let success_index = self.query_block_or_create(success_address);
                         self.add_edge(self.current_block, success_index)?;
