@@ -28,10 +28,9 @@ impl ControlFlowGraph {
         self.blocks.len() - 1
     }
 
-    /// Linearly searches the blocks currently in the graph to identify if the given block conflicts with another.
+    /// Searches for the block with the given start address and returns the position of it or creates a new one.
     fn query_block_or_create(&mut self, address: usize) -> usize {
-        let index = self.blocks.iter().position(|bb| bb.start == address).unwrap_or_else(|| { let new_block = BasicBlock::new(address); self.add_block(new_block) } );
-        index
+        self.blocks.iter().position(|bb| bb.start == address).unwrap_or_else(|| { let new_block = BasicBlock::new(address); self.add_block(new_block) } )
     }
 
     /// Generates a dot file from the constructed ControlFlowGraph so far.
@@ -42,6 +41,7 @@ impl ControlFlowGraph {
         match instruction {
             BlockType::Instruction(name, operand) => {
                 let curr_block = self.blocks.get_mut(self.current_block).ok_or(CFGError::MissingCurrentBlock)?;
+                assert!(program_counter >= curr_block.start, "Attempted to add an instruction behind the starting of the current block."); // TODO: Potentially generate an error-type?
                 if !curr_block.block.contains_key(&program_counter) {
                     curr_block.add_instruction(program_counter, BlockType::Instruction(name, operand));
                 }
@@ -51,7 +51,9 @@ impl ControlFlowGraph {
             BlockType::Jump(name, success_address, jump_type, failure_address) => {
                 // Add the instruction to the current block, if we already haven't
                 let curr_block = self.blocks.get_mut(self.current_block).ok_or(CFGError::MissingCurrentBlock)?;
+                assert!(program_counter >= curr_block.start, "Attempted to add an instruction behind the starting of the current block.");
                 if !curr_block.block.contains_key(&program_counter) {
+                    // NOTE: Should check if this creating a copy or just using move semantics to use the same thing of memory...
                     curr_block.add_instruction(program_counter, BlockType::Jump(name, success_address, jump_type, failure_address));
                 }
                 match jump_type {
@@ -105,6 +107,7 @@ struct BasicBlock {
 }
 
 impl BasicBlock {
+    /// Generates a new BasicBlock with a given start address
     fn new(start:usize) -> Self {
         BasicBlock { start: start, end: start, block: HashMap::new(), edges: Vec::new() }
     }
@@ -120,12 +123,12 @@ impl BasicBlock {
         self.block.iter()
     }
 
-
+    /// Adds a new edge if it cannot find it, otherwise increments the edge counter depending on if it was traversed or not.
     pub fn add_edge(&mut self, edge: usize, traversed: bool) {
         if let Some((_, cnt)) = self.edges.iter_mut().find(|(e, _)| *e == edge) {
-            *cnt += 1;
+            *cnt += traversed as usize;
         } else {
-            self.edges.push((edge, if traversed { 1 } else { 0 }));
+            self.edges.push((edge, traversed as usize));
         }
     }
 
@@ -139,5 +142,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {}
+    fn control_flow_creation() {
+        let cfg = ControlFlowGraph::new(2);
+        // cfg.execute(3, instruction)
+    }
 }
