@@ -1,31 +1,8 @@
-use thiserror::Error;
 use std::collections::HashMap;
+use crate::types::*;
+pub mod types;
 
-#[derive(Clone, Copy)]
-enum JumpType {
-    UnconditionalJump,
-    ConditionalTaken,
-    ConditionalNotTaken
-}
-
-#[derive(Clone)]
-enum BlockType {
-    Instruction(String, String),
-    Jump(String, usize, JumpType, Option<usize>)
-}
-
-#[derive(Error, Debug)]
-enum CFGError {
-    #[error("There was an attempt to find a BasicBlock which doesn't exist.")]
-    MissingBlock,
-    #[error("The current block does not exist inside the BasicBlocks.")]
-    MissingCurrentBlock,
-    #[error("A failure address was expected for a conditional jump and it was not provided.")]
-    ExpectedFailureAddress,
-}
-
-
-struct ControlFlowGraph {
+pub struct ControlFlowGraph {
     /// The indice of the current block
     current_block: usize,
     /// The basic blocks found inside this given ControlFlowGraph
@@ -39,13 +16,10 @@ impl ControlFlowGraph {
     }
 
     /// Adds an edge to a BasicBlock, connecting src_block to dest_block.
-    fn add_edge(&mut self, src_block: usize, dest_block: usize) -> Result<(), CFGError> {
-        if let Some(src_block) = self.blocks.get_mut(src_block) {
-            src_block.add_edge(dest_block);
-            Ok(())
-        } else {
-            return Err(CFGError::MissingBlock)
-        }
+    fn add_edge(&mut self, src_block: usize, dest_block: usize, traversed: bool) -> Result<(), CFGError> {
+        let src_block = self.blocks.get_mut(src_block).ok_or(CFGError::MissingBlock)?;
+        src_block.add_edge(dest_block, traversed);
+        Ok(())
     }
 
     /// Adds a BasicBlock to the ControlFlowGraph and returns the position of the BasicBlock.
@@ -83,7 +57,7 @@ impl ControlFlowGraph {
                 match jump_type {
                     JumpType::UnconditionalJump => {
                         let success_index = self.query_block_or_create(success_address);
-                        self.add_edge(self.current_block, success_index)?;
+                        self.add_edge(self.current_block, success_index, true)?;
                         self.current_block = success_index;
                         Ok(())
                     }
@@ -92,9 +66,9 @@ impl ControlFlowGraph {
                         let failure_address = failure_address.ok_or(CFGError::ExpectedFailureAddress)?;
 
                         let failure_index = self.query_block_or_create(failure_address);
-                        self.add_edge(self.current_block, failure_index)?;
+                        self.add_edge(self.current_block, failure_index, false)?;
                         let success_index = self.query_block_or_create(success_address);
-                        self.add_edge(self.current_block, success_index)?;
+                        self.add_edge(self.current_block, success_index, true)?;
                         self.current_block = success_index;
 
                         Ok(())
@@ -103,10 +77,10 @@ impl ControlFlowGraph {
                         // Failure address needs to be defined.
                         let failure_address = failure_address.ok_or(CFGError::ExpectedFailureAddress)?;
 
-                        let success_index = self.query_block_or_create(success_address);
-                        self.add_edge(self.current_block, success_index)?;
                         let failure_index = self.query_block_or_create(failure_address);
-                        self.add_edge(self.current_block, failure_index)?;
+                        self.add_edge(self.current_block, failure_index, true)?;
+                        let success_index = self.query_block_or_create(success_address);
+                        self.add_edge(self.current_block, success_index, false)?;
                         self.current_block = failure_index;
 
                         Ok(())
@@ -127,7 +101,7 @@ struct BasicBlock {
     /// The mapping of each address to its respective BlockType.
     block: HashMap<usize, BlockType>,
     /// The edges for the given basic block which are indices to other BasicBlocks
-    edges: Vec<usize>
+    edges: Vec<(usize, usize)>
 }
 
 impl BasicBlock {
@@ -146,18 +120,19 @@ impl BasicBlock {
         self.block.iter()
     }
 
-    // TODO: Add a counting metric to the edges to see how many times they've been traversed.
-    /// Adds a new edge the block, checks to see if that edge already exists.
-    pub fn add_edge(&mut self, edge: usize) {
-        if self.edges.iter().all(|e| *e != edge) {
-            self.edges.push(edge);
+
+    pub fn add_edge(&mut self, edge: usize, traversed: bool) {
+        if let Some((_, cnt)) = self.edges.iter_mut().find(|(e, _)| *e == edge) {
+            *cnt += 1;
+        } else {
+            self.edges.push((edge, if traversed { 1 } else { 0 }));
         }
     }
 
 }
 
 
-
+// TODO: Write a bunch of test cases.
 
 #[cfg(test)]
 mod tests {
