@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::io::Write;
 use crate::types::*;
 pub mod types;
 
@@ -34,7 +36,20 @@ impl ControlFlowGraph {
     }
 
     /// Generates a dot file from the constructed ControlFlowGraph so far.
-    pub fn dot(&self, filename: &str) { todo!() }
+    pub fn dot(&self, filename: &str) -> std::io::Result<()> {
+        let mut out = fs::File::create(filename)?;
+        // Construct the first part of the dot file
+        for bb in &self.blocks {
+            write!(out,"node_{} [shape=box][label=\"{}\"][color=\"gray0\"][fontname= \"Comic Sans MS\"]\n", bb.start, bb.to_string());
+        }
+        // Construct the edge connections between nodes
+        for bb in &self.blocks {
+            todo!()
+            // write!(out, "node_{} -> {{{}}}", bb.start, );
+        }
+
+        Ok(())
+     }
 
     /// Executes the given BlockType on the ControlFlowGraph
     pub fn execute(&mut self, program_counter: usize, instruction: BlockType) -> Result<(), CFGError> {
@@ -106,6 +121,13 @@ struct BasicBlock {
     edges: Vec<(usize, usize)>
 }
 
+impl ToString for BasicBlock {
+    fn to_string(&self) -> String {
+        let ret_string: Vec<String> = self.block.iter().map(|(address, instr)| format!("{:#8X} {}", address, instr.to_string())).collect();
+        ret_string.join("\\n")
+    }
+}
+
 impl BasicBlock {
     /// Generates a new BasicBlock with a given start address
     fn new(start:usize) -> Self {
@@ -121,6 +143,10 @@ impl BasicBlock {
     /// Returns an iterator of the current (key,value) pairs inside the underlying HashMap.
     pub fn iter(&self) -> impl Iterator<Item=(&usize, &BlockType)> {
         self.block.iter()
+    }
+
+    fn edge_string(&self) -> String {
+        todo!()
     }
 
     /// Adds a new edge if it cannot find it, otherwise increments the edge counter depending on if it was traversed or not.
@@ -142,8 +168,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn control_flow_creation() {
-        let cfg = ControlFlowGraph::new(2);
-        // cfg.execute(3, instruction)
+    fn unconditional_jump() -> Result<(), CFGError> {
+        let mut cfg = ControlFlowGraph::new(2);
+        cfg.execute(3, BlockType::Instruction("INC".to_string(), None))?;
+        cfg.execute(4, BlockType::Instruction("LDAC".to_string(), Some("SomeOperand".to_string())))?;
+        cfg.execute(5, BlockType::Jump("JMP".to_string(), 9, JumpType::UnconditionalJump, None))?;
+        cfg.execute(10, BlockType::Instruction("INC".to_string(), None))?;
+        assert_eq!(2, cfg.blocks.len());
+        assert_eq!(1, cfg.blocks.get(0).unwrap().edges.len());
+
+
+        Ok(())
     }
+
+    #[test]
+    fn conditional_jump() -> Result<(), CFGError> {
+        let mut cfg = ControlFlowGraph::new(2);
+        cfg.execute(3, BlockType::Instruction("INC".to_string(), None))?;
+        cfg.execute(4, BlockType::Instruction("LDAC".to_string(), Some("SomeOperand".to_string())))?;
+        cfg.execute(5, BlockType::Jump("JMP".to_string(), 9, JumpType::ConditionalTaken, Some(6)))?;
+        cfg.execute(10, BlockType::Instruction("INC".to_string(), None))?;
+        assert_eq!(3, cfg.blocks.len());
+        assert_eq!(1, cfg.blocks.get(0).unwrap().edges.get(1).unwrap().1);
+        assert_eq!(0, cfg.blocks.get(0).unwrap().edges.get(0).unwrap().1);
+
+        Ok(())
+    }
+
 }
