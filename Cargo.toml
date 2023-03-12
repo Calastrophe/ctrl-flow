@@ -3,6 +3,7 @@ name = "ctrl-flow"
 license-file = "LICENSE"
 homepage = "https://github.com/Calastrophe/ctrl-flow"
 repository = "https://github.com/Calastrophe/ctrl-flow"
+keywords = ["emulator", "control-flow", "visual", "graph"]
 description = "A platform agnostic easy-to-use library for implementing and visualizing control flow graphs."
 readme = "README.md"
 version = "0.1.0"
