@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::fs;
-use std::io::Write;
 use crate::types::*;
 pub mod types;
 
@@ -34,22 +32,6 @@ impl ControlFlowGraph {
     fn query_block_or_create(&mut self, address: usize) -> usize {
         self.blocks.iter().position(|bb| bb.start == address).unwrap_or_else(|| { let new_block = BasicBlock::new(address); self.add_block(new_block) } )
     }
-
-    /// Generates a dot file from the constructed ControlFlowGraph so far.
-    pub fn dot(&self, filename: &str) -> std::io::Result<()> {
-        let mut out = fs::File::create(filename)?;
-        write!(out, "digraph {{\n")?;
-        // Outline the blocks inside the dotgraph.
-        for bb in &self.blocks {
-            write!(out,"node_{} [shape=box][label=\"{}\"][color=\"gray0\"][fontname= \"Comic Sans MS\"]\n", bb.start, bb.to_string())?;
-        }
-        // Construct the edge connections between nodes
-        for bb in &self.blocks {
-            write!(out, "node_{} -> {{{}}}", bb.start, );
-        }
-        write!(out, "\n}}")?;
-        Ok(())
-     }
 
     /// Executes the given BlockType on the ControlFlowGraph
     pub fn execute(&mut self, program_counter: usize, instruction: BlockType) -> Result<(), CFGError> {
@@ -121,13 +103,6 @@ struct BasicBlock {
     edges: Vec<(usize, usize)>
 }
 
-impl ToString for BasicBlock {
-    fn to_string(&self) -> String {
-        let ret_string: Vec<String> = self.block.iter().map(|(address, instr)| format!("{:#8X} {}", address, instr.to_string())).collect();
-        ret_string.join("\\n")
-    }
-}
-
 impl BasicBlock {
     /// Generates a new BasicBlock with a given start address
     fn new(start:usize) -> Self {
@@ -140,13 +115,14 @@ impl BasicBlock {
         self.end = address;
     }
 
-    /// Returns an iterator of the current (key,value) pairs inside the underlying HashMap.
-    pub fn iter(&self) -> impl Iterator<Item=(&usize, &BlockType)> {
+    /// Returns an iterator of the address/instruction pairs inside the underlying HashMap.
+    pub fn instructions(&self) -> impl Iterator<Item=(&usize, &BlockType)> {
         self.block.iter()
     }
 
-    fn edge_string(&self) -> String {
-        todo!()
+    /// Returns an iterator of the edges/count pairs inside the underlying Vector.
+    pub fn edges(&self) -> impl Iterator<Item=&(usize, usize)> {
+        self.edges.iter()
     }
 
     /// Adds a new edge if it cannot find it, otherwise increments the edge counter depending on if it was traversed or not.

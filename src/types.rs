@@ -13,19 +13,6 @@ pub enum BlockType {
     Jump(String, usize, JumpType, Option<usize>)
 }
 
-impl ToString for BlockType {
-    fn to_string(&self) -> String {
-        match self {
-            BlockType::Instruction(name, operand) => {
-                format!("{} {}", name, operand.clone().unwrap_or("".to_string()))
-            }
-            BlockType::Jump(name, success_address, jump_type, failure_address) => {
-                format!("{} {}", name, success_address)
-            }
-        }
-    }
-}
-
 #[derive(Error, Debug)]
 pub enum CFGError {
     #[error("There was an attempt to find a BasicBlock which doesn't exist.")]
