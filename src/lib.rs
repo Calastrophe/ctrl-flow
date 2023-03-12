@@ -33,6 +33,10 @@ impl ControlFlowGraph {
         self.blocks.iter().position(|bb| bb.start == address).unwrap_or_else(|| { let new_block = BasicBlock::new(address); self.add_block(new_block) } )
     }
 
+    pub fn blocks(&self) -> impl Iterator<Item=&BasicBlock> {
+        self.blocks.iter()
+    }
+
     /// Executes the given BlockType on the ControlFlowGraph
     pub fn execute(&mut self, program_counter: usize, instruction: BlockType) -> Result<(), CFGError> {
         match instruction {
@@ -92,7 +96,7 @@ impl ControlFlowGraph {
 }
 
 
-struct BasicBlock {
+pub struct BasicBlock {
     /// The starting address of this basic block.
     start: usize,
     /// The current end address of this basic block.
