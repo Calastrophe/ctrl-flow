@@ -5,7 +5,7 @@ pub mod types;
 pub struct ControlFlowGraph {
     /// The indice of the current block
     current_block: usize,
-    /// The basic blocks found inside this given ControlFlowGraph
+    /// The BasicBlocks found inside this given ControlFlowGraph
     blocks: Vec<BasicBlock>
 }
 
@@ -33,6 +33,7 @@ impl ControlFlowGraph {
         self.blocks.iter().position(|bb| bb.start == address).unwrap_or_else(|| { let new_block = BasicBlock::new(address); self.add_block(new_block) } )
     }
 
+    /// Returns an iterator over the BasicBlocks inside the ControlFlowGraph
     pub fn blocks(&self) -> impl Iterator<Item=&BasicBlock> {
         self.blocks.iter()
     }
@@ -140,8 +141,6 @@ impl BasicBlock {
 
 }
 
-
-// TODO: Write a bunch of test cases.
 
 #[cfg(test)]
 mod tests {
