@@ -38,16 +38,16 @@ impl ControlFlowGraph {
     /// Generates a dot file from the constructed ControlFlowGraph so far.
     pub fn dot(&self, filename: &str) -> std::io::Result<()> {
         let mut out = fs::File::create(filename)?;
-        // Construct the first part of the dot file
+        write!(out, "digraph {{\n")?;
+        // Outline the blocks inside the dotgraph.
         for bb in &self.blocks {
-            write!(out,"node_{} [shape=box][label=\"{}\"][color=\"gray0\"][fontname= \"Comic Sans MS\"]\n", bb.start, bb.to_string());
+            write!(out,"node_{} [shape=box][label=\"{}\"][color=\"gray0\"][fontname= \"Comic Sans MS\"]\n", bb.start, bb.to_string())?;
         }
         // Construct the edge connections between nodes
         for bb in &self.blocks {
-            todo!()
-            // write!(out, "node_{} -> {{{}}}", bb.start, );
+            write!(out, "node_{} -> {{{}}}", bb.start, );
         }
-
+        write!(out, "\n}}")?;
         Ok(())
      }
 
