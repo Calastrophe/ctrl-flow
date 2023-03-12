@@ -1,23 +1,31 @@
-# ctrl-flow
+## What is ctrl-flow?
 
-### This library is a work-in-progress, things may not be finished and are **subject to change**.
+ctrl-flow is a library which makes easy to implement control flow graphs.
 
-This is a library for easily implementing control flow graphs in Rust.
+It is more targetted toward creators of virtual machines, interpreters, or emulators.
 
-This is more targetted towards custom architectures with emulators, virtual machines, or some type of interpreter.
+This is just a bare-bones framework to construct a control flow graph, then it is up to the user to export it to another format. There will be some provided formats, but hidden behind feature flags in future releases.
 
-The aim of this library is to avoid needless dependecies and just deliver the user of this library what is needed.
 
 **Pull requests are welcome for optimizing or improving the library**.
 
-### Implementation information
+## How do I use it?
 
-Currently, there are two types which your instruction set needs to be formatted into - Instruction or Jump.
+Firstly, there are only two types which can act on the control flow graph. `Instruction` and `Jump`.
 
-An instruction is just the name of the instruction followed by the potential operand.
+You must convert your instruction which you are executing at run-time into a `BlockType` depending on how the instruction effects control flow. `Instruction` contains a name and optionally an operand. A `Jump` contains a name, success address, `JumpType`, and failure address. The failure address is only required in the case of a conditional `JumpType`.
 
-A jump contains similarly the name and the operand (success address), followed by the jump type, then the failure address.
+Your `JumpType` in a `Jump` can be one of three: `UnconditionalJump`, `ConditionalTaken`, and `ConditionalNotTaken`.
 
-A jump type is one of three: UnconditionalJump, ConditionalTaken, ConditionalNotTaken
+After you've constructed the `BlockType`, you can then use the execute command with the current program counter to take an effect on the graph.
 
-These things are needed for cfg-rs to accurately transcribe your control flow without needing to know the details of your architecture.
+To export the ControlFlowGraph, you can use the provided iterators to export into your own format. In future releases, these will be provided, but opt-in.
+
+### Non-goals
+
+Implementing and maintaining five thousand different formats to output
+
+Switch statements? *maybe...*
+
+
+
