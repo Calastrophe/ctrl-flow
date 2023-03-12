@@ -110,7 +110,7 @@ impl BasicBlock {
     }
 
     /// Adds an instruction of BlockType to the given BasicBlock at the given address in the underlying HashMap.
-    pub fn add_instruction(&mut self, address:usize, instruction: BlockType) {
+    fn add_instruction(&mut self, address:usize, instruction: BlockType) {
         self.block.insert(address, instruction);
         self.end = address;
     }
@@ -126,7 +126,7 @@ impl BasicBlock {
     }
 
     /// Adds a new edge if it cannot find it, otherwise increments the edge counter depending on if it was traversed or not.
-    pub fn add_edge(&mut self, edge: usize, traversed: bool) {
+    fn add_edge(&mut self, edge: usize, traversed: bool) {
         if let Some((_, cnt)) = self.edges.iter_mut().find(|(e, _)| *e == edge) {
             *cnt += traversed as usize;
         } else {
